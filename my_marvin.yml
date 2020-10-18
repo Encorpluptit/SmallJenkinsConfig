@@ -44,6 +44,8 @@ jenkins:
                         - "Job/Create"
                         - "Job/Configure"
                         - "Job/Delete"
+                        - "Job/Move"
+                        - "Job/Cancel"
                       assignments:
                         - "vaugie_g"
                     - name: "assist"
@@ -53,13 +55,16 @@ jenkins:
                         - "Job/Workspace"
                       assignments:
                         - "nasso"
+security:
+    globalJobDslSecurityConfiguration:
+      useScriptSecurity: false
 jobs:
     - script: >
         folder('Tools') {
             description('Folder for miscellaneous tools.')
         }
 
-        freeStyleJob('Tools/clone-repository') {
+        job('Tools/clone-repository') {
             parameters {
                 stringParam('GIT_REPOSITORY_URL', '', 'Git URL of the repository to clone')
             }
@@ -71,9 +76,32 @@ jobs:
             }
         }
 
-        freeStyleJob('Tools/SEED') {
+        job('Tools/SEED') {
             parameters {
                 stringParam('GITHUB_NAME', '', 'GitHub repository owner/repo_name (e.g.: "EpitechIT31000/chocolatine")')
                 stringParam('DISPLAY_NAME', '', 'Display name for the job')
+            }
+            steps {
+                dsl {
+                    text('''
+                        job("$DISPLAY_NAME") {
+                            wrappers {
+                                preBuildCleanup()
+                            }
+                            scm {
+                                github("$GITHUB_NAME")
+                            }
+                            triggers {
+                                scm('* * * * *')
+                            }
+                            steps {
+                                shell('make fclean')
+                                shell('make')
+                                shell('make test')
+                                shell('make clean')
+                            }
+                        }
+                    ''')
+                }
             }
         }
